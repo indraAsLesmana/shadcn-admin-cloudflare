@@ -1,0 +1,5 @@
+i think we can start to make:
+if user have not login redirect to http://localhost:5173/sign-in
+if user have login redirect to http://localhost:5173/
+
+this is api latter we will implement.

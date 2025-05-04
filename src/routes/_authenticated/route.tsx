@@ -1,5 +1,6 @@
 import Cookies from 'js-cookie'
-import { createFileRoute, Outlet } from '@tanstack/react-router'
+import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
+import { isAuthenticated } from '@/utils/auth'
 import { cn } from '@/lib/utils'
 import { SearchProvider } from '@/context/search-context'
 import { SidebarProvider } from '@/components/ui/sidebar'
@@ -7,6 +8,12 @@ import { AppSidebar } from '@/components/layout/app-sidebar'
 import SkipToMain from '@/components/skip-to-main'
 
 export const Route = createFileRoute('/_authenticated')({
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      // If not logged in, redirect to sign-in
+      throw redirect({ to: '/sign-in' })
+    }
+  },
   component: RouteComponent,
 })
 
