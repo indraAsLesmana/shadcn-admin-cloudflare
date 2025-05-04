@@ -15,18 +15,17 @@ const userRoleSchema = z.union([
   z.literal('manager'),
 ])
 
-const userSchema = z.object({
-  id: z.string(),
-  firstName: z.string(),
-  lastName: z.string(),
-  username: z.string(),
+// --- Adjusted schema to match honc-api ---
+export const userSchema = z.object({
+  id: z.number(),
+  googleId: z.string().nullable().optional(),
+  name: z.string(),
   email: z.string(),
-  phoneNumber: z.string(),
-  status: userStatusSchema,
-  role: userRoleSchema,
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-})
-export type User = z.infer<typeof userSchema>
+  avatar: z.string().nullable().optional(),
+  is_admin: z.boolean(),
+  createdAt: z.union([z.coerce.date(), z.string(), z.number()]),
+  updatedAt: z.union([z.coerce.date(), z.string(), z.number()]),
+});
+export type User = z.infer<typeof userSchema>;
 
 export const userListSchema = z.array(userSchema)

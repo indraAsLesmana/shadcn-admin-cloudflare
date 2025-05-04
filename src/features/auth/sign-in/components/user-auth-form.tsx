@@ -1,10 +1,4 @@
-import { HTMLAttributes, useState } from 'react'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { IconBrandFacebook, IconBrandGithub } from '@tabler/icons-react'
-import { cn } from '@/lib/utils'
+import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -15,9 +9,14 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { PasswordInput } from '@/components/password-input'
 import { API_ENDPOINTS } from '@/contants/api'
-import Cookies from 'js-cookie'
+import { cn } from '@/lib/utils'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { IconBrandFacebook, IconBrandGithub } from '@tabler/icons-react'
+import { useNavigate } from '@tanstack/react-router'
+import { HTMLAttributes, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 
 type UserAuthFormProps = HTMLAttributes<HTMLFormElement>
 
@@ -48,6 +47,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   })
   const navigate = useNavigate()
 
+  
   async function onSubmit(data: z.infer<typeof formSchema>) {
     setIsLoading(true)
     setError(null)
@@ -64,9 +64,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         setIsLoading(false)
         return
       }
-      if (result.token) {
-        Cookies.set('auth_token', result.token, { path: '/' })
-      }
+      
       navigate({ to: '/' })
     } catch (err) {
       setError('Login failed. Please try again.')
