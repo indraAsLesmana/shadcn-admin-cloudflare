@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+import { API_ENDPOINTS } from '@/contants/api'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -9,8 +11,6 @@ import { UsersPrimaryButtons } from './components/users-primary-buttons'
 import { UsersTable } from './components/users-table'
 import UsersProvider from './context/users-context'
 import { userListSchema, User } from './data/schema'
-import { useEffect, useState } from 'react'
-import { API_ENDPOINTS } from '@/contants/api'
 
 export default function Users() {
   const [userList, setUserList] = useState<User[]>([])
@@ -25,16 +25,32 @@ export default function Users() {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`${API_ENDPOINTS.USERS}?page=${page}&pageSize=${pageSize}`, {
-          credentials: 'include',
-        })
-        if (!res.ok) throw new Error('Failed to fetch users')
+        const res = await fetch(
+          `${API_ENDPOINTS.USERS}?page=${page}&pageSize=${pageSize}`,
+          {
+            credentials: 'include',
+          }
+        )
         const data = await res.json()
-        const parsed = userListSchema.parse(data.users)
-        setUserList(parsed)
-        setTotalPages(data.meta.totalPages)
+        if (!res.ok) {
+          setError(data.error || 'Failed to fetch users')
+          setUserList([])
+          setTotalPages(1)
+          return
+        }
+        if (!Array.isArray(data.users)) {
+          setError('Malformed response: users is not an array')
+          setUserList([])
+          setTotalPages(1)
+          return
+        }
+        const parsedUsers = userListSchema.parse(data.users)
+        setUserList(parsedUsers)
+        setTotalPages(data.meta?.totalPages ?? 1)
       } catch (e: any) {
         setError(e.message || 'Unknown error')
+        setUserList([])
+        setTotalPages(1)
       } finally {
         setLoading(false)
       }
@@ -62,30 +78,9 @@ export default function Users() {
           </div>
           <UsersPrimaryButtons />
         </div>
-        {error && <div className='text-red-500'>{error}</div>}
-        {loading ? (
-          <div>Loading users...</div>
-        ) : (
-          <div className='-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-y-0 lg:space-x-12'>
-            <UsersTable data={userList} columns={columns} />
-            <div className='flex items-center justify-between mt-4'>
-              <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                Previous
-              </button>
-              <span>
-                Page {page} of {totalPages}
-              </span>
-              <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-                Next
-              </button>
-              <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))}>
-                {[10, 20, 50, 100].map(size => (
-                  <option key={size} value={size}>{size} / page</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
+        <div className='-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-y-0 lg:space-x-12'>
+          <UsersTable data={userList} columns={columns} />
+        </div>
       </Main>
 
       <UsersDialogs />

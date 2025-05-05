@@ -5,5 +5,5 @@ export const API_URL = import.meta.env.VITE_PUBLIC_API_URL
 export const API_ENDPOINTS = {
     LOGIN: `${API_URL}/api/v1/auth/login`,
 
-    USERS: `${API_URL}/api/v1/users`
+    USERS: `${API_URL}/api/v1/users/users`
 };
