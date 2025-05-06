@@ -25,22 +25,19 @@ import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/password-input'
 import { SelectDropdown } from '@/components/select-dropdown'
 import { userTypes } from '../data/data'
-import { User } from '../data/schema'
+import { User, userSchema } from '../data/schema'
 
 const formSchema = z
   .object({
-    firstName: z.string().min(1, { message: 'First Name is required.' }),
-    lastName: z.string().min(1, { message: 'Last Name is required.' }),
-    username: z.string().min(1, { message: 'Username is required.' }),
-    phoneNumber: z.string().min(1, { message: 'Phone number is required.' }),
-    email: z
-      .string()
-      .min(1, { message: 'Email is required.' })
-      .email({ message: 'Email is invalid.' }),
-    password: z.string().transform((pwd) => pwd.trim()),
-    role: z.string().min(1, { message: 'Role is required.' }),
-    confirmPassword: z.string().transform((pwd) => pwd.trim()),
-    isEdit: z.boolean(),
+    firstName: z.string().optional().or(z.literal('')),
+    lastName: z.string().optional().or(z.literal('')),
+    username: z.string().optional().or(z.literal('')),
+    email: userSchema.shape.email.or(z.literal('')),
+    role: z.string().optional().or(z.literal('')),
+    phoneNumber: z.string().optional().or(z.literal('')),
+    password: z.string().optional().or(z.literal('')),
+    confirmPassword: z.string().optional().or(z.literal('')),
+    isEdit: z.boolean().optional(),
   })
   .superRefine(({ isEdit, password, confirmPassword }, ctx) => {
     if (!isEdit || (isEdit && password !== '')) {
@@ -52,23 +49,15 @@ const formSchema = z
         })
       }
 
-      if (password.length < 8) {
+      if (password?.length && password.length < 6) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Password must be at least 8 characters long.',
+          message: 'Password must be at least 6 characters long.',
           path: ['password'],
         })
       }
 
-      if (!password.match(/[a-z]/)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Password must contain at least one lowercase letter.',
-          path: ['password'],
-        })
-      }
-
-      if (!password.match(/\d/)) {
+      if (!password?.match(/\d/)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'Password must contain at least one number.',
@@ -85,6 +74,7 @@ const formSchema = z
       }
     }
   })
+
 type UserForm = z.infer<typeof formSchema>
 
 interface Props {
@@ -99,7 +89,12 @@ export function UsersActionDialog({ currentRow, open, onOpenChange }: Props) {
     resolver: zodResolver(formSchema),
     defaultValues: isEdit
       ? {
-          ...currentRow,
+          firstName: currentRow?.name ?? '',
+          lastName: currentRow?.name ?? '',
+          username: currentRow?.name ?? '',
+          email: currentRow?.email ?? '',
+          role: currentRow?.is_admin ? 'admin' : 'user',
+          phoneNumber: '',
           password: '',
           confirmPassword: '',
           isEdit,
