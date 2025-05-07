@@ -16,8 +16,8 @@ export default function Users() {
   const [userList, setUserList] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [page] = useState(1)
+  const [pageSize] = useState(20)
   const [totalPages, setTotalPages] = useState(1)
 
   useEffect(() => {
@@ -69,6 +69,9 @@ export default function Users() {
       </Header>
 
       <Main>
+        {loading && (
+          <div className="w-full py-2 text-center text-blue-600">Loading users...</div>
+        )}
         <div className='mb-2 flex flex-wrap items-center justify-between space-y-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>User List</h2>
@@ -79,6 +82,11 @@ export default function Users() {
           <UsersPrimaryButtons />
         </div>
         <div className='-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-y-0 lg:space-x-12'>
+          {error && (
+            <div className="mb-4 w-full rounded bg-red-100 p-2 text-center text-red-700">
+              {error}
+            </div>
+          )}
           <UsersTable 
             data={userList} 
             columns={columns} 
