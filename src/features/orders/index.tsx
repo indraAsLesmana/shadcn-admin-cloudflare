@@ -1,8 +1,10 @@
+import React from 'react';
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { API_ENDPOINTS } from '@/contants/api';
 // Placeholder: you should implement these for orders
 // import OrdersProvider from './context/orders-context'
 // import { OrdersDialogs } from './components/orders-dialogs'
@@ -15,17 +17,32 @@ import { ThemeSwitch } from '@/components/theme-switch'
 const OrdersProvider = ({ children }: { children: React.ReactNode }) => <>{children}</>
 const OrdersDialogs = () => null
 const OrdersPrimaryButtons = () => null
-const orders = [
-    { orderId: 'ORD-001', address: '123 Main St', status: 'Pending' },
-    { orderId: 'ORD-002', address: '456 Elm St', status: 'Shipped' },
-]
+// API endpoint for orders
+const ORDERS_API_URL = API_ENDPOINTS.ORDERS;
+
+// Types for fetched data
+interface Order {
+    id: string;
+    [key: string]: any;
+}
+
+interface OrdersResponse {
+    orders: Order[];
+    meta: {
+        page: number;
+        pageSize: number;
+        total: number;
+        totalPages: number;
+    };
+}
+
 const columns = [
     {
-        accessorKey: 'orderId',
+        accessorKey: 'id',
         header: 'Order Id',
     },
     {
-        accessorKey: 'address',
+        accessorKey: 'completeAddress',
         header: 'Address',
     },
     {
@@ -59,6 +76,43 @@ const DataTable = ({ data, columns }: { data: any[]; columns: any[] }) => (
 )
 
 export default function Orders() {
+    const [orders, setOrders] = React.useState<Order[]>([]);
+    const [meta, setMeta] = React.useState<OrdersResponse['meta']>({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+
+    // Fetch orders from API
+    const fetchOrders = React.useCallback(async (page: number, pageSize: number) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch(`${ORDERS_API_URL}?page=${page}&pageSize=${pageSize}`, {
+                credentials: 'include',
+            });
+            if (!res.ok) throw new Error('Failed to fetch orders');
+            const data: OrdersResponse = await res.json();
+            setOrders(data.orders);
+            setMeta(data.meta);
+        } catch (err: any) {
+            setError(err.message || 'Unknown error');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        fetchOrders(meta.page, meta.pageSize);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [meta.page, meta.pageSize]);
+
+    // Pagination handlers
+    const handlePrev = () => {
+        if (meta.page > 1) setMeta((m) => ({ ...m, page: m.page - 1 }));
+    };
+    const handleNext = () => {
+        if (meta.page < meta.totalPages) setMeta((m) => ({ ...m, page: m.page + 1 }));
+    };
+
     return (
         <OrdersProvider>
             <Header fixed>
@@ -79,10 +133,24 @@ export default function Orders() {
                     <OrdersPrimaryButtons />
                 </div>
                 <div className='-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-y-0 lg:space-x-12'>
-                    <DataTable data={orders} columns={columns} />
+                    {loading ? (
+                        <div className="p-4 text-center">Loading...</div>
+                    ) : error ? (
+                        <div className="p-4 text-red-500 text-center">{error}</div>
+                    ) : (
+                        <DataTable data={orders} columns={columns} />
+                    )}
+                </div>
+                <div className="flex justify-between items-center mt-4 px-4">
+                    <button onClick={handlePrev} disabled={meta.page === 1 || loading} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
+                    <span>
+                        Page {meta.page} of {meta.totalPages} (Total: {meta.total})
+                    </span>
+                    <button onClick={handleNext} disabled={meta.page === meta.totalPages || loading} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
                 </div>
             </Main>
             <OrdersDialogs />
         </OrdersProvider>
-    )
+    );
 }
+
