@@ -1,10 +1,10 @@
-import React from 'react';
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
-import { ThemeSwitch } from '@/components/theme-switch'
+import { Header } from '@/components/layout/header';
+import { Main } from '@/components/layout/main';
+import { ProfileDropdown } from '@/components/profile-dropdown';
+import { Search } from '@/components/search';
+import { ThemeSwitch } from '@/components/theme-switch';
 import { API_ENDPOINTS } from '@/contants/api';
+import React from 'react';
 // Placeholder: you should implement these for orders
 // import OrdersProvider from './context/orders-context'
 // import { OrdersDialogs } from './components/orders-dialogs'
@@ -15,7 +15,6 @@ import { API_ENDPOINTS } from '@/contants/api';
 
 // Temporary mock implementations for demonstration
 const OrdersProvider = ({ children }: { children: React.ReactNode }) => <>{children}</>
-const OrdersDialogs = () => null
 const OrdersPrimaryButtons = () => null
 // API endpoint for orders
 const ORDERS_API_URL = API_ENDPOINTS.ORDERS;
@@ -38,6 +37,11 @@ interface OrdersResponse {
 
 const columns = [
     {
+        id: 'actions',
+        header: '',
+        cell: ({ row }: { row: any }) => <OrderRowActions row={row.original} />, // Custom actions button
+    },
+    {
         accessorKey: 'id',
         header: 'Order Id',
     },
@@ -49,13 +53,67 @@ const columns = [
         accessorKey: 'status',
         header: 'Status',
     },
-]
+];
+
+// Option button component for each row
+function OrderRowActions({ row }: { row: any }) {
+    const [open, setOpen] = React.useState(false);
+    const menuRef = React.useRef<HTMLDivElement>(null);
+    const buttonRef = React.useRef<HTMLButtonElement>(null);
+
+    React.useEffect(() => {
+        if (!open) return;
+        function handleClickOutside(event: MouseEvent) {
+            if (
+                menuRef.current &&
+                !menuRef.current.contains(event.target as Node) &&
+                buttonRef.current &&
+                !buttonRef.current.contains(event.target as Node)
+            ) {
+                setOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [open]);
+
+    return (
+        <div className="relative">
+            <button
+                ref={buttonRef}
+                className="px-2 py-1 text-gray-500 hover:text-gray-700"
+                onClick={() => setOpen((v) => !v)}
+                aria-label="Options"
+            >
+                ⋮
+            </button>
+            {open && (
+                <div ref={menuRef} className="absolute left-0 z-10 mt-2 w-28 rounded-md bg-white shadow-lg border flex flex-col gap-1 py-1">
+                    <button
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                        onClick={() => {
+                            setOpen(false);
+                            row.onEdit && row.onEdit(row);
+                        }}
+                    >Edit</button>
+                    <button
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+                        onClick={() => {
+                            setOpen(false);
+                            row.onDelete && row.onDelete(row);
+                        }}
+                    >Delete</button>
+                </div>
+            )}
+        </div>
+    );
+}
 const DataTable = ({ data, columns }: { data: any[]; columns: any[] }) => (
     <table className="min-w-full divide-y divide-gray-200">
         <thead>
             <tr>
                 {columns.map((col) => (
-                    <th key={col.accessorKey} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th key={col.accessorKey || col.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         {col.header}
                     </th>
                 ))}
@@ -65,8 +123,8 @@ const DataTable = ({ data, columns }: { data: any[]; columns: any[] }) => (
             {data.map((row, idx) => (
                 <tr key={idx}>
                     {columns.map((col) => (
-                        <td key={col.accessorKey} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {row[col.accessorKey]}
+                        <td key={col.accessorKey || col.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {col.cell ? col.cell({ row }) : row[col.accessorKey]}
                         </td>
                     ))}
                 </tr>
@@ -75,11 +133,54 @@ const DataTable = ({ data, columns }: { data: any[]; columns: any[] }) => (
     </table>
 )
 
+// Placeholder dialogs for edit/delete
+function OrdersActionDialog({ open, onOpenChange, currentRow }: any) {
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+            <div className="bg-white p-4 rounded shadow">
+                <h2 className="font-bold mb-2">Edit Order</h2>
+                <pre>{JSON.stringify(currentRow, null, 2)}</pre>
+                <button className="mt-2 px-4 py-2 bg-blue-500 text-white rounded" onClick={() => onOpenChange(false)}>Close</button>
+            </div>
+        </div>
+    );
+}
+function OrdersDeleteDialog({ open, onOpenChange, currentRow }: any) {
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+            <div className="bg-white p-4 rounded shadow">
+                <h2 className="font-bold mb-2">Delete Order?</h2>
+                <pre>{JSON.stringify(currentRow, null, 2)}</pre>
+                <button className="mt-2 px-4 py-2 bg-red-500 text-white rounded" onClick={() => onOpenChange(false)}>Cancel</button>
+                <button className="mt-2 ml-2 px-4 py-2 bg-gray-300 rounded" onClick={() => onOpenChange(false)}>Confirm</button>
+            </div>
+        </div>
+    );
+}
+
 export default function Orders() {
     const [orders, setOrders] = React.useState<Order[]>([]);
+    const [openDialog, setOpenDialog] = React.useState<'edit' | 'delete' | null>(null);
+    const [currentRow, setCurrentRow] = React.useState<any>(null);
+
     const [meta, setMeta] = React.useState<OrdersResponse['meta']>({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+
+    // Enhance orders with action handlers for row menu
+    const enhancedOrders = orders.map((order) => ({
+        ...order,
+        onEdit: (row: any) => {
+            setCurrentRow(row);
+            setOpenDialog('edit');
+        },
+        onDelete: (row: any) => {
+            setCurrentRow(row);
+            setOpenDialog('delete');
+        },
+    }));
 
     // Fetch orders from API
     const fetchOrders = React.useCallback(async (page: number, pageSize: number) => {
@@ -138,7 +239,7 @@ export default function Orders() {
                     ) : error ? (
                         <div className="p-4 text-red-500 text-center">{error}</div>
                     ) : (
-                        <DataTable data={orders} columns={columns} />
+                        <DataTable data={enhancedOrders} columns={columns} />
                     )}
                 </div>
                 <div className="flex justify-between items-center mt-4 px-4">
@@ -149,7 +250,23 @@ export default function Orders() {
                     <button onClick={handleNext} disabled={meta.page === meta.totalPages || loading} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
                 </div>
             </Main>
-            <OrdersDialogs />
+            {/* Order dialogs for edit/delete */}
+            <OrdersActionDialog
+                open={openDialog === 'edit'}
+                onOpenChange={(open: boolean) => {
+                    setOpenDialog(open ? 'edit' : null);
+                    if (!open) setTimeout(() => setCurrentRow(null), 500);
+                }}
+                currentRow={currentRow}
+            />
+            <OrdersDeleteDialog
+                open={openDialog === 'delete'}
+                onOpenChange={(open: boolean) => {
+                    setOpenDialog(open ? 'delete' : null);
+                    if (!open) setTimeout(() => setCurrentRow(null), 500);
+                }}
+                currentRow={currentRow}
+            />
         </OrdersProvider>
     );
 }
