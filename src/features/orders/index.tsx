@@ -35,11 +35,11 @@ interface OrdersResponse {
     };
 }
 
-const columns = [
+const columns = ({ onEdit, onDelete }: { onEdit: (row: any) => void, onDelete: (row: any) => void }) => [
     {
         id: 'actions',
         header: '',
-        cell: ({ row }: { row: any }) => <OrderRowActions row={row.original} />, // Custom actions button
+        cell: ({ row }: { row: any }) => <OrderRowActions row={row.original} onEdit={onEdit} onDelete={onDelete} />, // Custom actions button
     },
     {
         accessorKey: 'id',
@@ -56,7 +56,7 @@ const columns = [
 ];
 
 // Option button component for each row
-function OrderRowActions({ row }: { row: any }) {
+function OrderRowActions({ row, onEdit, onDelete }: { row: any, onEdit: (row: any) => void, onDelete: (row: any) => void }) {
     const [open, setOpen] = React.useState(false);
     const menuRef = React.useRef<HTMLDivElement>(null);
     const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -93,14 +93,14 @@ function OrderRowActions({ row }: { row: any }) {
                         className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
                         onClick={() => {
                             setOpen(false);
-                            row.onEdit && row.onEdit(row);
+                            onEdit(row);
                         }}
                     >Edit</button>
                     <button
                         className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
                         onClick={() => {
                             setOpen(false);
-                            row.onDelete && row.onDelete(row);
+                            onDelete(row);
                         }}
                     >Delete</button>
                 </div>
@@ -133,17 +133,192 @@ const DataTable = ({ data, columns }: { data: any[]; columns: any[] }) => (
     </table>
 )
 
-// Placeholder dialogs for edit/delete
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+
+const orderStatusOptions = [
+    { label: 'Need to Verify', value: 'need_to_verify' },
+    { label: 'Paid', value: 'paid' },
+    { label: 'Shipped', value: 'shipped' },
+    { label: 'Completed', value: 'completed' },
+    { label: 'Cancelled', value: 'cancelled' },
+];
+const paymentMethodOptions = [
+    { label: 'Bank Transfer', value: 'bank_transfer' },
+    { label: 'Credit Card', value: 'credit_card' },
+    { label: 'Cash', value: 'cash' },
+];
+
+const orderFormSchema = z.object({
+    recipientName: z.string().min(1, 'Recipient name is required'),
+    phone: z.string().min(1, 'Phone is required'),
+    completeAddress: z.string().min(1, 'Address is required'),
+    status: z.string().min(1, 'Status is required'),
+    paymentMethod: z.string().min(1, 'Payment method is required'),
+});
+
+type OrderFormValues = z.infer<typeof orderFormSchema>;
+
 function OrdersActionDialog({ open, onOpenChange, currentRow }: any) {
-    if (!open) return null;
+    const isEdit = Boolean(currentRow);
+    const form = useForm<OrderFormValues>({
+        resolver: zodResolver(orderFormSchema),
+        defaultValues: {
+            recipientName: currentRow?.recipientName || '',
+            phone: currentRow?.phone || '',
+            completeAddress: currentRow?.completeAddress || '',
+            status: currentRow?.status || '',
+            paymentMethod: currentRow?.paymentMethod || '',
+        },
+    });
+
+    React.useEffect(() => {
+        form.reset({
+            recipientName: currentRow?.recipientName || '',
+            phone: currentRow?.phone || '',
+            completeAddress: currentRow?.completeAddress || '',
+            status: currentRow?.status || '',
+            paymentMethod: currentRow?.paymentMethod || '',
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentRow, open]);
+
+    function onSubmit(values: OrderFormValues) {
+        // TODO: Implement save logic (API call)
+        // You can call an API here and close dialog on success
+        onOpenChange(false);
+    }
+
     return (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-            <div className="bg-white p-4 rounded shadow">
-                <h2 className="font-bold mb-2">Edit Order</h2>
-                <pre>{JSON.stringify(currentRow, null, 2)}</pre>
-                <button className="mt-2 px-4 py-2 bg-blue-500 text-white rounded" onClick={() => onOpenChange(false)}>Close</button>
-            </div>
-        </div>
+        <Dialog open={open} onOpenChange={(state) => {
+            form.reset();
+            onOpenChange(state);
+        }}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader className="text-left">
+                    <DialogTitle>{isEdit ? 'Edit Order' : 'Add New Order'}</DialogTitle>
+                    <DialogDescription>
+                        {isEdit ? 'Update the order here. ' : 'Create new order here. '}
+                        Click save when you&apos;re done.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="-mr-4 h-[26.25rem] w-full overflow-y-auto py-1 pr-4">
+                    <Form {...form}>
+                        <form
+                            id="order-form"
+                            onSubmit={form.handleSubmit(onSubmit)}
+                            className="space-y-4 p-0.5"
+                        >
+                            <FormField
+                                control={form.control}
+                                name="recipientName"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
+                                        <FormLabel className="col-span-2 text-right">Recipient Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g., John Doe" className="col-span-4" autoComplete="off" {...field} />
+                                        </FormControl>
+                                        <FormMessage className="col-span-4 col-start-3" />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="phone"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
+                                        <FormLabel className="col-span-2 text-right">Phone</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g., 08123456789" className="col-span-4" autoComplete="off" {...field} />
+                                        </FormControl>
+                                        <FormMessage className="col-span-4 col-start-3" />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="completeAddress"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
+                                        <FormLabel className="col-span-2 text-right">Address</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g., Jl. Example No. 123" className="col-span-4" autoComplete="off" {...field} />
+                                        </FormControl>
+                                        <FormMessage className="col-span-4 col-start-3" />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="status"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
+                                        <FormLabel className="col-span-2 text-right">Status</FormLabel>
+                                        <FormControl>
+                                            <select
+                                                className="col-span-4 border rounded-md px-2 py-1 w-full"
+                                                {...field}
+                                            >
+                                                <option value="">Select status</option>
+                                                {orderStatusOptions.map((opt) => (
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                ))}
+                                            </select>
+                                        </FormControl>
+                                        <FormMessage className="col-span-4 col-start-3" />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="paymentMethod"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1">
+                                        <FormLabel className="col-span-2 text-right">Payment Method</FormLabel>
+                                        <FormControl>
+                                            <select
+                                                className="col-span-4 border rounded-md px-2 py-1 w-full"
+                                                {...field}
+                                            >
+                                                <option value="">Select payment method</option>
+                                                {paymentMethodOptions.map((opt) => (
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                ))}
+                                            </select>
+                                        </FormControl>
+                                        <FormMessage className="col-span-4 col-start-3" />
+                                    </FormItem>
+                                )}
+                            />
+                        </form>
+                    </Form>
+                </div>
+                <DialogFooter>
+                    <Button type="submit" form="order-form">
+                        Save changes
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 function OrdersDeleteDialog({ open, onOpenChange, currentRow }: any) {
@@ -239,7 +414,19 @@ export default function Orders() {
                     ) : error ? (
                         <div className="p-4 text-red-500 text-center">{error}</div>
                     ) : (
-                        <DataTable data={enhancedOrders} columns={columns} />
+                        <DataTable
+                            data={orders}
+                            columns={columns({
+                                onEdit: (row) => {
+                                    setCurrentRow(row);
+                                    setOpenDialog('edit');
+                                },
+                                onDelete: (row) => {
+                                    setCurrentRow(row);
+                                    setOpenDialog('delete');
+                                },
+                            })}
+                        />
                     )}
                 </div>
                 <div className="flex justify-between items-center mt-4 px-4">
